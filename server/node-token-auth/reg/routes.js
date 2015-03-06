@@ -3,6 +3,13 @@ var router = express.Router();
 var User = require('./user');
 var cons = require('tracer').console();
 
+/*-----------------------------setup mailer-----------------------------------*/
+var nodemailer = require('nodemailer')
+var gmailCred =require('../cfg').gmail();
+var smtpTransport = nodemailer.createTransport("SMTP",gmailCred);  
+console.log(smtpTransport.options.service)
+
+
 var isAuthenticated = function(req, res, next) {
 	// if user is authenticated in the session, call the next() to call the next request handler 
 	// Passport adds this method to request object. A middleware is allowed to add properties to
@@ -15,25 +22,31 @@ var isAuthenticated = function(req, res, next) {
 
 var blankUser= {name: '', email: '', lists:[], role:'', timestamp: 1, apikey: ''};
 
-var createUser = function(usr, res, callback) {
-	var usr = usr;
-	var ret ={};
-	console.log('in createUser')
-	usr.timestamp = Date.now();
-	if (usr.apikey.length < 10) {
-		usr.apikey = createRandomWord(24);
-		console.log('creating new user with apikiey')
-	}
-	var newuser = new User(usr)
-	newuser.save( function(err){
-		if (err){
-			ret = {message:'error', err:err}
-			console.log('wtf')
-		}else {
-			ret = {message: 'available', user: newuser}
-		}
-		callback(ret)
-	})
+
+emailKey =function(items, callback){
+    console.log('in emailKey')
+    console.log(smtpTransport.options.service)
+    var mailOptions = {
+        from: "Stuff2Get <mckenna.tim@gmail.com>", // sender address
+        to: items.email, // list of receivers
+        subject: "apikey", // Subject line
+        text: "Your apikey for stuff2get is: " +items.apikey + "Return to the web page and enter your apikey to complete registration for your device", // plaintext body
+        html: "<b>Your apikey for stuff2get is: " +items.apikey + "</b><p>Return to the web page and enter your apikey to complete registration for your device </b></p>" // html body
+    }
+    var ret=""
+    smtpTransport.sendMail(mailOptions, function(error, response){
+        if(error){
+                console.log(error);
+                ret = error;
+        }else{
+                console.log("Message sent: " + response.message);
+                ret = {message: 'check your email and come back'} 
+        }
+        smtpTransport.close(); // shut down the connection pool, no more messages
+        console.log(ret)
+        callback(ret);
+    });
+
 }
 
 
@@ -89,9 +102,22 @@ module.exports = function(passport) {
 		});
 	});
 
+router.get('/api/isMatch2/', function(req, res) {
+	cons.log('in isMatch2');
+	var name = req.query.name.toLowerCase();
+	var email = req.query.email.toLowerCase();
+	var apikey = "";
+	cons.log(name + ' ' + email)
+	var usr = {}
+	var comboExists = 0;
+	var eitherExists = 0;
+	var message = '';	
+	res.jsonp('dog')
+})	
+
 router.get('/api/isMatch/', function(req, res) {
 	console.log('in isMatch');
-	var name = req.query.user.toLowerCase();
+	var name = req.query.name.toLowerCase();
 	var email = req.query.email.toLowerCase();
 	var apikey = "";
 	cons.log(name + ' ' + email)
@@ -116,17 +142,22 @@ router.get('/api/isMatch/', function(req, res) {
 			} else {
 				var upd ={}
 				if (!comboExists && !eitherExists) {
-					console.log('neither combo or either exists')
+					cons.log('neither combo or either exists so available, upserting new user')
 					upd = blankUser;
 					upd.name = name;
 					upd.email = email;
 					upd.timestamp = Date.now()
 					message = 'available';
 					upd.apikey = createRandomWord(24);
+					apikey = upd.apikey;
 				} else if (comboExists) {
+					cons.log('matching combo exists, ')
 					if (usr.apikey.length < 10) { //need a new apikey?
 						upd.apikey = createRandomWord(24);
+						apikey = upd.apikey
 						upd.timestamp=Date.now()
+					}else {
+						apikey=usr.apikey
 					}
 					message = 'match';
 				}
@@ -135,6 +166,12 @@ router.get('/api/isMatch/', function(req, res) {
 				User.update({name: name}, upd, {upsert: true}, function(err, result){
 					cons.log(result)
 					cons.log(err)
+					var emu = upd;
+					emu.email = email;
+					emu.apikey = apikey;
+					emailKey(upd, function(ret){
+						console.log(ret);
+					});
 					res.jsonp({message: message, result: result, err:err})
 				})
 			}
@@ -152,9 +189,7 @@ router.get('/api/isMatch/', function(req, res) {
 
 	/* GET Registration Page */
 	router.get('/signup', function(req, res) {
-		res.render('register', {
-			message: req.flash('message')
-		});
+		res.send('register');
 	});
 
 	/* Handle Registration POST */
