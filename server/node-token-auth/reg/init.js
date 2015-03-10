@@ -3,6 +3,7 @@ var BearerStrategy = require('passport-http-bearer').Strategy;
 var jwt = require('jwt-simple');
 var cfg = require('../cfg').cfg();
 var secret = cfg.secret;
+var cons = require('tracer').console();
 
 var User = require('./user');
 // User.find().toArray(function(err, items) {
@@ -39,12 +40,7 @@ module.exports = function(passport) {
 
 	passport.use(new BearerStrategy({},
 		function(token, done) {
-			// asynchronous validation, for effect...
 			process.nextTick(function() {
-				// Find the user by token.  If there is no user with the given token, set
-				// the user to `false` to indicate failure.  Otherwise, return the
-				// authenticated `user`.  Note that in a production-ready application, one
-				// would want to validate the token for authenticity.
 				if (token) {
 					try {
 						var user = jwt.decode(token, secret);

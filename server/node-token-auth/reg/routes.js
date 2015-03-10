@@ -1,7 +1,9 @@
 var express = require('express');
 var router = express.Router();
+var jwt = require('jwt-simple');
 var User = require('./user');
 var cons = require('tracer').console();
+var secret = require('../cfg').cfg().secret
 
 /*-----------------------------setup mailer-----------------------------------*/
 var nodemailer = require('nodemailer')
@@ -9,19 +11,7 @@ var gmailCred =require('../cfg').gmail();
 var smtpTransport = nodemailer.createTransport("SMTP",gmailCred);  
 console.log(smtpTransport.options.service)
 
-
-var isAuthenticated = function(req, res, next) {
-	// if user is authenticated in the session, call the next() to call the next request handler 
-	// Passport adds this method to request object. A middleware is allowed to add properties to
-	// request and response objects
-	if (req.isAuthenticated())
-		return next();
-	// if the user is not authenticated then redirect him to the login page
-	res.redirect('/');
-}
-
 var blankUser= {name: '', email: '', lists:[], role:'', timestamp: 1, apikey: ''};
-
 
 emailKey =function(items, callback){
     console.log('in emailKey')
@@ -46,9 +36,7 @@ emailKey =function(items, callback){
         console.log(ret)
         callback(ret);
     });
-
 }
-
 
 var createRandomWord = function(length) {
 	var consonants = 'bcdfghjklmnpqrstvwxyz',
@@ -69,10 +57,7 @@ var createRandomWord = function(length) {
 	return word;
 }
 
-
 module.exports = function(passport) {
-
-	/* GET login page. */
 	router.get('/api', function(req, res) {
 		// Display the Login page with any flash message, if any
 		res.jsonp('at the root of nothing');
@@ -102,115 +87,104 @@ module.exports = function(passport) {
 		});
 	});
 
-router.get('/api/isMatch2/', function(req, res) {
-	cons.log('in isMatch2');
-	var name = req.query.name.toLowerCase();
-	var email = req.query.email.toLowerCase();
-	var apikey = "";
-	cons.log(name + ' ' + email)
-	var usr = {}
-	var comboExists = 0;
-	var eitherExists = 0;
-	var message = '';	
-	res.jsonp('dog')
-})	
-
-router.get('/api/isMatch/', function(req, res) {
-	console.log('in isMatch');
-	var name = req.query.name.toLowerCase();
-	var email = req.query.email.toLowerCase();
-	var apikey = "";
-	cons.log(name + ' ' + email)
-	var usr = {}
-	var comboExists = 0;
-	var eitherExists = 0;
-	var message = '';
-	User.find({name: name, email: email}, function(err, user) {
-		if (user.length > 0) {
-			usr = user[0];
+	router.get('/api/isMatch/', function(req, res) {
+		console.log('in isMatch');
+		try{
+			var name = req.query.name.toLowerCase();
+			var email = req.query.email.toLowerCase();
+			var apikey = "";
+			cons.log(name + ' ' + email)
+		}catch(err){
+			cons.log(err)
+			res.jsonp({message: 'bad query'});
+			return;
 		}
-		cons.log(usr)
-		cons.log(user.length)
-		comboExists = user.length
-		User.find({$or: [{name: name}, {email: email}]}, function(err, oitems) {
-			cons.log(oitems)
-			cons.log(oitems.length)
-			eitherExists = oitems.length >0;
-			if (eitherExists && !comboExists) {
-				message = 'conflict'
-				res.jsonp({message: message})
-			} else {
-				var upd ={}
-				if (!comboExists && !eitherExists) {
-					cons.log('neither combo or either exists so available, upserting new user')
-					upd = blankUser;
-					upd.name = name;
-					upd.email = email;
-					upd.timestamp = Date.now()
-					message = 'available';
-					upd.apikey = createRandomWord(24);
-					apikey = upd.apikey;
-				} else if (comboExists) {
-					cons.log('matching combo exists, ')
-					if (usr.apikey.length < 10) { //need a new apikey?
-						upd.apikey = createRandomWord(24);
-						apikey = upd.apikey
-						upd.timestamp=Date.now()
-					}else {
-						apikey=usr.apikey
-					}
-					message = 'match';
-				}
-				cons.log(upd)
-				cons.log(name)
-				User.update({name: name}, upd, {upsert: true}, function(err, result){
-					cons.log(result)
-					cons.log(err)
-					var emu = upd;
-					emu.email = email;
-					emu.apikey = apikey;
-					emailKey(upd, function(ret){
-						console.log(ret);
-					});
-					res.jsonp({message: message, result: result, err:err})
-				})
+		var usr = {}
+		var comboExists = 0;
+		var eitherExists = 0;
+		var message = '';
+		User.find({name: name, email: email}, function(err, user) {
+			if (user.length > 0) {
+				usr = user[0];
 			}
+			cons.log(usr)
+			cons.log(user.length)
+			comboExists = user.length
+			User.find({$or: [{name: name}, {email: email}]}, function(err, oitems) {
+				cons.log(oitems)
+				cons.log(oitems.length)
+				eitherExists = oitems.length >0;
+				if (eitherExists && !comboExists) {
+					message = 'conflict'
+					res.jsonp({message: message})
+				} else {
+					var upd ={}
+					if (!comboExists && !eitherExists) {
+						cons.log('neither combo or either exists so available, upserting new user')
+						upd = blankUser;
+						upd.name = name;
+						upd.email = email;
+						upd.timestamp = Date.now()
+						message = 'available';
+						upd.apikey = createRandomWord(24);
+						apikey = upd.apikey;
+					} else if (comboExists) {
+						cons.log('matching combo exists, ')
+						if (usr.apikey.length < 10) { //need a new apikey?
+							upd.apikey = createRandomWord(24);
+							apikey = upd.apikey
+							upd.timestamp=Date.now()
+						}else {
+							apikey=usr.apikey
+						}
+						message = 'match';
+					}
+					cons.log(upd)
+					cons.log(name)
+					User.update({name: name}, upd, {upsert: true}, function(err, result){
+						cons.log(result)
+						cons.log(err)
+						var emu = upd;
+						emu.email = email;
+						emu.apikey = apikey;
+						emailKey(upd, function(ret){
+							console.log(ret);
+						});
+						res.jsonp({message: message, result: result, err:err})
+					})
+				}
+			});
 		});
-	});
-})
+	})
 
-
-	/* Handle Login POST */
-	router.post('/login', passport.authenticate('login', {
-		successRedirect: '/home',
-		failureRedirect: '/',
-		failureFlash: true
-	}));
-
-	/* GET Registration Page */
-	router.get('/signup', function(req, res) {
-		res.send('register');
-	});
-
-	/* Handle Registration POST */
-	router.post('/signup', passport.authenticate('signup', {
-		successRedirect: '/home',
-		failureRedirect: '/signup',
-		failureFlash: true
-	}));
-
-	/* GET Home Page */
-	router.get('/home', isAuthenticated, function(req, res) {
-		res.render('home', {
-			user: req.user
-		});
-	});
-
-	/* Handle Logout */
-	router.get('/signout', function(req, res) {
-		req.logout();
-		res.redirect('/');
-	});
+	router.post('/api/authenticate/:name', 
+	//passport.authenticate('localapikey', {session: false, failureRedirect: '/api/unauthorized'}),
+		passport.authenticate('localapikey', {session: false}),
+		function(req, res) {
+			console.log(req.params)
+			cons.log(req.user)
+			console.log('just sent body in /api/authenticate')
+			if (req.params.name==req.user.name){
+				cons.log('names match')
+				var payload = {name: req.user.name};
+				var token = jwt.encode(payload, secret);
+				var name =jwt.decode(token, secret);
+				cons.log(name)
+				res.jsonp({message: 'token here', token: token});
+				cons.log(token);     
+			}else {
+				res.jsonp({message: 'apikey does not match user'});
+			}
+		}
+	);
+	router.get('/api/account', 
+		passport.authenticate('bearer', { session: false }), 
+		function(req, res){ 
+			console.log('in api/account ') 
+			console.log(req.body)
+			res.jsonp(req.user)
+		}
+	);
 
 	return router;
 }
