@@ -1,6 +1,6 @@
 var secret = 'some phrase to be used to encode token';
 var port = 3000;
-var db= 'mongodbname';
+var db= 'test';
 
 exports.cfg = function(){
 	return{

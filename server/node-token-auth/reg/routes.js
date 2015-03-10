@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var jwt = require('jwt-simple');
+var fs = require('fs');
 var User = require('./user');
 var cons = require('tracer').console();
 var secret = require('../cfg').cfg().secret
@@ -14,6 +15,13 @@ console.log(smtpTransport.options.service)
 var blankUser= {name: '', email: '', lists:[], role:'', timestamp: 1, apikey: ''};
 
 emailKey =function(items, callback){
+	fs.writeFile("node-token-auth/key", items.apikey, function(err){
+	    if(err) {
+	        cons.log(err);
+	    } else {
+	        cons.log("The file was saved!");
+	    }		
+	})
     console.log('in emailKey')
     console.log(smtpTransport.options.service)
     var mailOptions = {

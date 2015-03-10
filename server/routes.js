@@ -16,39 +16,10 @@ var isRightList = function(lists, list){
 }
 
 module.exports = function(passport){
-	router.get('/dog/', function(req, res) {
+	router.get('api/dog/', function(req, res) {
 		res.jsonp('You are a dog, Uli')
 	});	
-	router.get('/api/users', function(req, res) {
-		console.log('in api/users uu')
-		User.find({}, function(err, items) {
-			if(err){res.jsonp(err)}else{res.jsonp(items)};
-		});
-	});	
-
-	router.get('/api/lists/:lid', 
-		passport.authenticate('bearer', { session: false }), 
-		function(req, res){ 
-			console.log('in getList by lid');
-			var lid = req.params.lid;
-			cons.log(lid);  
-			cons.log (req.user)            
-			if (isRightList(req.user.lists, lid)) {
-				cons.log('isRightList')
-				db.collection('lists', function(err, collection) {
-					collection.findOne({lid:lid}, function(err, items) {
-						if(err){res.jsonp(err)}else{
-							console.log('this got found')
-							console.log(items.shops)
-							res.jsonp(items)
-						};
-					})
-				})      
-			} else {
-				res.jsonp({message: 'that is not one of your lists', lists: req.user.lists})
-			}
-		}
-	)	
+	
 	router.get('/api/users/:name', 
 		passport.authenticate('bearer', { session: false }), 
 		function(req, res) {
@@ -63,5 +34,25 @@ module.exports = function(passport){
 			});
 		}
 	);
+	router.delete('/api/users/:name',
+		passport.authenticate('bearer', { session: false }),  
+		function(req, res) {
+			console.log('in delete user by name');
+			console.log(req.params);
+			var name = req.params.name;
+			db.collection('users', function(err, collection) {
+				collection.remove({
+					name: name
+				}, function(err, saved) {
+					if (err) {
+						res.jsonp(err)
+					} else {
+						res.jsonp(saved)
+					};
+				});
+			});
+		}
+	);
+
 	return router;
 }
