@@ -7,14 +7,18 @@ Uses node express passport and mongoose.
 Rename cfg-blank.js to cfg.js and fill out database, port, jwt secret and smtp mailer credentials.
 
 from /server/node-token-auth  directory  run
+
 	npm install 
 
 start mongod
+
        monngod
 
 from /server run
+
 	node server
 
-test 
+test
+ 
       cd node-token-auth
       mocha
