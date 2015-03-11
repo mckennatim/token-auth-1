@@ -4,10 +4,7 @@ Schema = mongoose.Schema;
 var usersSchema = new Schema({
 	name: {type:String, index:{unique: true}},
 	email: String,
-	apikey: String,
-	lists: Array,
-	timestamp: String,
-	role: String
+	apikey: String
 }, { strict: false });
 mongoose.connect(db.url);
 

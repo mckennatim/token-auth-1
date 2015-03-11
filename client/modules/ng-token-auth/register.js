@@ -19,7 +19,7 @@ Register.directive('register', ['$state', 'UserService', 'TokenService', 'AuthSe
 	return{
 		restrict: 'E',
 		scope: {}, 
-		templateUrl: "modules/ng-token-auth/register.html",
+		templateUrl: "modules/register/register.html",
 		controller: function(){
 		},
 		controllerAs: 'registerCtrl',
@@ -142,9 +142,6 @@ Register.directive('register', ['$state', 'UserService', 'TokenService', 'AuthSe
 					case response=='conflict':
 						scope.users.regMessage = response+': Email does not match username or has already been associated with another username' 
 						break;
-					case response=='bad query':
-						scope.users.regMessage = response+': Query string is not as it should be ' 
-						break;
 					case response=='server is down':
 						scope.users.regMessage = response+': App will only work offline for authenticated users' 
 						break;
@@ -232,7 +229,7 @@ Register.factory('AuthService', ['$http', '$q', 'cfg', function($http, $q, cfg) 
 			return deferred.promise;
 		},
 		isMatch: function(name, email) {
-			var url=cfg.serverUrl + 'isMatch/?name='+name+'&email='+email;      
+			var url=cfg.serverUrl + 'isMatch/?user='+name+'&email='+email;      
 			var deferred = $q.defer();
 			$http.get(url).   
 			success(function(data, status) {
@@ -312,6 +309,7 @@ Register.factory('TokenInterceptor', ['$q', '$injector', 'cfg', function ($q, $i
         responseError: function(rejection) {
             var tok = TokenService.getActiveToken();
             if (tok) {
+                
                 if (rejection != null && rejection.status === 401) {
                     TokenService.deleteActiveToken();
                 }else{
