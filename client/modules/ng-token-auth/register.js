@@ -15,7 +15,7 @@ Register.config(['$httpProvider', function ($httpProvider) {
 }])
 
 Register.directive('register', ['$state', 'UserService', 'TokenService', 'AuthService', 'cfg', function($state, UserService, TokenService, AuthService,cfg){
-	var lsus = cfg.LSpre+'users';
+	var lsus = cfg.setup().prefix+'users';
 	return{
 		restrict: 'E',
 		scope: {}, 
@@ -115,9 +115,11 @@ Register.directive('register', ['$state', 'UserService', 'TokenService', 'AuthSe
 						var name = scope.users.activeUser;
 						UserService.dBget(name)
 							.then(function(data){
-								scope.users[name]=data.items;
-								UserService.LSsave()
 								console.log(data);
+								scope.users[name]=data.items;
+								UserService.makeActive(name)
+								cfg.afterReg(name);
+								$state.go('lists')
 							})
 							.catch(function(data){
 								scope.users.regMessage = ' server is down, cannot get servers user record now'
@@ -184,10 +186,11 @@ Register.directive('register', ['$state', 'UserService', 'TokenService', 'AuthSe
 	}
 }])
 
-Register.factory('AuthService', ['$http', '$q', 'cfg', function($http, $q, cfg) {
+Register.factory('AuthService', ['$http', '$q', 'cfg', function($http, $q, cfg) {	
+	var serverUrl = cfg.setup().url	
 	return {
 		auth: function(apikey, name) {
-			var url=cfg.serverUrl + 'authenticate/' + name;
+			var url=serverUrl + 'authenticate/' + name;
 			var deferred = $q.defer();
 			$http.post(url, {apikey:apikey}, {withCredentials:true}).   
 			success(function(data, status) {
@@ -211,7 +214,7 @@ Register.factory('AuthService', ['$http', '$q', 'cfg', function($http, $q, cfg) 
 			return deferred.promise;
 		},
 		isUser: function(name) {
-			var url=cfg.serverUrl + 'isUser/'+name;
+			var url=serverUrl + 'isUser/'+name;
 			var deferred = $q.defer();
 			$http.get(url).   
 			success(function(data, status) {
@@ -229,7 +232,7 @@ Register.factory('AuthService', ['$http', '$q', 'cfg', function($http, $q, cfg) 
 			return deferred.promise;
 		},
 		isMatch: function(name, email) {
-			var url=cfg.serverUrl + 'isMatch/?user='+name+'&email='+email;      
+			var url=serverUrl + 'isMatch/?name='+name+'&email='+email;      
 			var deferred = $q.defer();
 			$http.get(url).   
 			success(function(data, status) {
@@ -248,8 +251,8 @@ Register.factory('AuthService', ['$http', '$q', 'cfg', function($http, $q, cfg) 
 }]);
 
 Register.factory('TokenService', ['cfg', function( cfg){
-	var lstok = cfg.LSpre+'tokens';
-	var lsus =  cfg.LSpre+'users';
+	var lstok = cfg.setup().prefix+'tokens';
+	var lsus =  cfg.setup().prefix+'users';
 	if (!JSON.parse(localStorage.getItem(lstok))){
 		localStorage.setItem(lstok, JSON.stringify({}));
 	}
@@ -285,7 +288,7 @@ Register.factory('TokenService', ['cfg', function( cfg){
 
 Register.factory('TokenInterceptor', ['$q', '$injector', 'cfg', function ($q, $injector, cfg) {
     var TokenService = $injector.get('TokenService');
-    var key = cfg.LSpre+'tokens';
+    var key = cfg.setup().prefix+'tokens';
     var blankTokens= {userList:[]};
     return { 
         request: function (config) {
@@ -325,9 +328,9 @@ Register.factory('TokenInterceptor', ['$q', '$injector', 'cfg', function ($q, $i
 }]);
 
 Register.factory('UserService',  ['$http', 'cfg', '$q', function($http, cfg, $q){
-	var ls = cfg.LSpre+'users';
+	var ls = cfg.setup().prefix+'users';
 	var al = JSON.parse(localStorage.getItem(ls)) || {activeUser: '', activeList:'', regState:'Register',regMessage:'', userList:[]}
-	var httpLoc = cfg.serverUrl;	
+	var httpLoc = cfg.setup().url;	
 	return{
 		al: al,
 		LSsave: function(){
